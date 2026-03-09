@@ -1,0 +1,44 @@
+# render.yaml
+services:
+  # Web Service (FastAPI приложение)
+  - type: web
+    name: link-shortener-api
+    runtime: docker
+    repo: https://github.com/yourusername/your-repo  # замените на ваш репозиторий
+    region: frankfurt  # выберите регион (frankfurt, oregon, singapore)
+    plan: free  # или starter, professional
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: link-shortener-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: link-shortener-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true  # Render сгенерирует случайный ключ
+      - key: PORT
+        value: 8000
+    
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # База данных PostgreSQL
+  - type: postgresql
+    name: link-shortener-db
+    region: frankfurt  # должен совпадать с регионом web service
+    plan: free
+    databaseName: linkshortener
+    ipAllowList: []  # пустой список = доступ только из Render
+
+  # Redis
+  - type: redis
+    name: link-shortener-redis
+    region: frankfurt  # должен совпадать с регионом web service
+    plan: free
+    ipAllowList: []  # пустой список = доступ только из Render
