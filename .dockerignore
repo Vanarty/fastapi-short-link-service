@@ -1,0 +1,13 @@
+__pycache__
+*.pyc
+.git
+.gitignore
+.env
+.venv
+venv
+README.md
+docker-compose.yml
+.dockerignore
+.env.example
+*.ipynb
+.ipynb_checkpoints
