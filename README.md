@@ -20,32 +20,42 @@ API-сервис сокращения ссылок на FastAPI с PostgreSQL и
 
 ```
 .
-├── migrations/                   # Миграции Alembic
-│   ├── env.py                    # Конфигурация Alembic (async)
-│   ├── script.py.mako            # Шаблон для генерации миграций
+├── migrations/                    # Миграции Alembic
+│   ├── env.py                     # Конфигурация Alembic (async)
+│   ├── script.py.mako             # Шаблон для генерации миграций
 │   └── versions/
 │       └── 001_initial_tables.py
-├── src/                          # Исходный код приложения
+├── src/                           # Исходный код приложения
 │   ├── __init__.py
-│   ├── main.py                   # Точка входа, lifespan, фоновая очистка
-│   ├── config.py                 # Настройки (pydantic-settings)
-│   ├── database.py               # Подключение к PostgreSQL (async)
-│   ├── cache.py                  # Обертка над Redis
-│   ├── models.py                 # SQLAlchemy-модели
-│   ├── schemas.py                # Pydantic-схемы запросов/ответов
-│   ├── auth.py                   # JWT-аутентификация
+│   ├── main.py                    # Точка входа, lifespan, фоновая очистка
+│   ├── config.py                  # Настройки (pydantic-settings)
+│   ├── database.py                # Подключение к PostgreSQL (async)
+│   ├── cache.py                   # Обертка над Redis
+│   ├── models.py                  # SQLAlchemy-модели
+│   ├── schemas.py                 # Pydantic-схемы запросов/ответов
+│   ├── auth.py                    # JWT-аутентификация
 │   └── routers/
 │       ├── __init__.py
-│       ├── users.py              # Регистрация, вход
-│       └── links.py              # CRUD, статистика, поиск
-├── tests/                        # Тесты (пока нет, но планирую внести при выполнении 4-го проекта)
+│       ├── users.py               # Регистрация, вход
+│       └── links.py               # CRUD, статистика, поиск
+├── tests/                         # Юнит- и функциональные тесты
+│   ├── __init__.py
+│   ├── conftest.py                # Фикстуры (тестовая БД, мок кэша, клиент)
+│   ├── test_unit.py               # Юнит-тесты (генерация кодов, пароли, кэш)
+│   ├── test_api_users.py          # Функциональные тесты пользователей
+│   ├── test_api_links.py          # Функциональные тесты ссылок (CRUD, редирект)
+│   └── test_cleanup.py            # Тесты фоновой задачи очистки
+├── htmlcov/                       # HTML-отчёт покрытия (открыть index.html)
 ├── .dockerignore
-├── .env.example
+├── .env
 ├── .gitignore
 ├── alembic.ini
 ├── docker-compose.yml
 ├── Dockerfile
+├── locustfile.py                  # Нагрузочное тестирование (Locust)
+├── pyproject.toml                 # Конфигурация pytest и coverage
 ├── README.md
+├── README_TESTS.md                # Подробная документация по тестам
 └── requirements.txt
 ```
 
@@ -97,6 +107,54 @@ alembic revision --autogenerate -m "описание изменений"
 
 # Посмотреть текущую ревизию
 alembic current
+```
+
+## Тесты
+
+Тесты используют SQLite (in-memory) и мок кэша — **не требуют запуска PostgreSQL/Redis**.
+
+Всего **79 тестов**: 31 юнит-тест, 45 функциональных, 3 теста фоновой очистки.
+Покрытие кода: **96%**.
+
+Подробное описание каждого теста — см. [README_TESTS.md](README_TESTS.md).
+
+### Запуск тестов
+
+```bash
+# Все тесты
+python -m pytest tests/ -v
+
+# Только юнит-тесты
+python -m pytest tests/test_unit.py -v
+
+# Только тесты ссылок
+python -m pytest tests/test_api_links.py -v
+```
+
+### Покрытие кода
+
+```bash
+coverage run -m pytest tests/
+coverage report -m            # Текстовый отчёт в консоль
+coverage html                 # HTML-отчёт → htmlcov/index.html
+```
+
+> Используйте `coverage run`, а не `pytest --cov` — это необходимо для
+> корректного отслеживания async-кода (SQLAlchemy + greenlet).
+
+Готовый HTML-отчёт покрытия находится в папке `htmlcov/` (файл `index.html`).
+
+### Нагрузочное тестирование (Locust)
+
+Требует **запущенный сервис** (например, через `docker-compose up`).
+
+```bash
+# С веб-интерфейсом (http://localhost:8089)
+locust -f locustfile.py --host http://localhost:8000
+
+# Без UI — 50 пользователей, 10 подключений/сек, 60 секунд
+locust -f locustfile.py --host http://localhost:8000 \
+       --headless -u 50 -r 10 --run-time 60s --html report.html
 ```
 
 ## Переменные окружения
@@ -203,7 +261,7 @@ curl -X DELETE http://localhost:8000/links/my-link \
   -H "Authorization: Bearer <token>"
 ```
 
-### Установка порога не активности
+### Установка порога неактивности
 
 ```bash
 curl -X PUT "http://localhost:8000/links/unused-threshold?days=30" \
@@ -275,7 +333,10 @@ curl http://localhost:8000/links/expired \
 - **Redis** -- кэширование
 - **python-jose** -- JWT-токены
 - **passlib** -- хэширование паролей
-- **pytest** -- тестирование
+- **pytest + pytest-asyncio** -- тестирование
+- **httpx** -- async HTTP-клиент для тестов
+- **coverage** -- измерение покрытия кода
+- **Locust** -- нагрузочное тестирование
 - **Docker / Docker Compose** -- контейнеризация
 
 *Разработал: Иванов Артём*

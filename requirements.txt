@@ -11,3 +11,9 @@ pydantic-settings
 python-dotenv
 python-multipart
 aiosqlite
+# Тестовые зависимости
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+locust
